@@ -1,56 +1,92 @@
-# Minimalist & Secure REST API (FastAPI)
+# 🛡️ Minimalist & Secure REST API (FastAPI)
 
-A minimalist, high-performance, and extremely secure REST API built with **Python (FastAPI)**. This project demonstrates backend security best practices, Identity & Access Management (IAM), role-based authorization, security audit logging, and protection against common web vulnerabilities.
+[![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-v0.110%2B-green.svg)](https://fastapi.tiangolo.com)
+[![Security Certified](https://img.shields.io/badge/Security-Hardened-red.svg)](#-security-hardening-details)
 
-This API is designed as a secure control plane or administrative backend, making it an excellent complement to security automation and monitoring tools (such as PCAP parsers and Intrusion Detection Systems).
+A minimalist, high-performance, and hardened REST API built with **Python (FastAPI)**. This project demonstrates backend security engineering best practices, including **Identity & Access Management (IAM)**, **Role-Based Access Control (RBAC)**, **Security Audit Logging**, **Rate Limiting (Brute-Force defense)**, and defensive HTTP security headers.
 
----
-
-## 🔒 Security Features Implemented
-
-### 1. Authentication (AuthN)
-- **User Registration**: Enforces strict Pydantic inputs (alphanumeric usernames, password complexity of min-length 8).
-- **Secure Password Hashing**: Uses modern `bcrypt` hashing with salt rounds (work factor) of 12. Hashing is performed directly to avoid deprecated python-jose/passlib compatibility warnings.
-- **JWT (JSON Web Tokens) Session Management**: Issues secure, short-lived (15 minutes) access tokens upon successful login using `OAuth2PasswordBearer`.
-
-### 2. Authorization (AuthZ) & RBAC
-- **Role-Based Access Control (RBAC)**: Implements two user tiers: `User` and `Admin`.
-- **FastAPI Dependencies**: Restricts routes dynamically.
-  - `/api/v1/dashboard`: Accessible to both `User` and `Admin`.
-  - `/api/v1/admin`: Accessible **only** to `Admin`. Attempts to access this route by non-admins result in immediate access rejection (`403 Forbidden`) and security audit logging.
-
-### 3. Security Audit Logging
-- Isolation of security events into a dedicated log file: `logs/audit.log`.
-- **Log Rotation**: Automatic rotation with `RotatingFileHandler` (max size 10MB, up to 5 backups) to prevent log-injection storage denial-of-service.
-- **Audited Events**:
-  - `REGISTER_SUCCESS` / `REGISTER_FAILED`
-  - `LOGIN_SUCCESS` / `FAILED_LOGIN_ATTEMPT` (logs target username and source IP)
-  - `UNAUTHORIZED_ADMIN_ACCESS` (logs offender username, target path, and source IP)
-- **Structured format**:
-  `[TIMESTAMP] SECURITY_AUDIT | IP: <client_ip> | User: <username> | Event: <event_type> | <detailed_message>`
-
-### 4. HTTP Security Headers (Helmet Equivalent)
-A custom ASGI middleware injects secure-by-default HTTP headers to prevent client-side attacks:
-- **HTTP Strict Transport Security (HSTS)**: `Strict-Transport-Security: max-age=31536000; includeSubDomains` (forces HTTPS).
-- **MIME Sniffing Prevention**: `X-Content-Type-Options: nosniff`.
-- **Clickjacking Protection**: `X-Frame-Options: DENY`.
-- **XSS Mitigation**: `X-XSS-Protection: 1; mode=block`.
-- **Content Security Policy (CSP)**: Restricts script/frame execution (`default-src 'self'; frame-ancestors 'none';`).
-- **Referrer Policy**: `Referrer-Policy: no-referrer`.
-
-### 5. Rate Limiting (Brute-Force Protection)
-- Implements `slowapi` (a FastAPI extension of `limits`) on the `/api/v1/auth/login` endpoint.
-- Protects against brute-force credential stuffing by restricting login requests (default: `5 attempts per minute` per client IP).
-- Returns a standard `429 Too Many Requests` status code when the limit is exceeded.
+> [!NOTE]
+> This API serves as a secure backend/control plane or administrative gateway. It is designed to complement network security automation scripts, central monitoring dashboards, and intrusion detection logs (such as PCAP parsers).
 
 ---
 
-## 🛠️ Tech Stack
-- **Framework**: FastAPI (Asynchronous Python ASGI)
-- **Settings & Validation**: Pydantic v2 & Pydantic Settings
-- **Cryptographic Operations**: Bcrypt, PyJWT (python-jose)
-- **Rate Limiting**: SlowAPI / Limits
-- **Testing**: Pytest & HTTPX (TestClient)
+## 📐 Architecture & Security Flow
+
+Below is the request-response lifecycle illustrating the zero-trust architecture. Every request passes through rate limiting, security header injections, dynamic Content Security Policy (CSP) path checks, signature validation, and role checkpoints.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Client Browser
+    participant API as FastAPI Gateway
+    participant Limiter as Rate Limiter (SlowAPI)
+    participant Auth as Auth Module (JWT)
+    participant DB as User Database
+    participant Log as Security Audit Log
+
+    Client->>API: HTTP Request (e.g. GET /api/v1/admin)
+    API->>API: Inject Security Headers (HSTS, nosniff, etc.)
+    API->>API: Check Dynamic CSP Path (Docs vs API)
+    API->>Limiter: Check Request rate (per IP)
+    
+    alt Rate Limit Exceeded
+        Limiter-->>Client: HTTP 429 Too Many Requests
+    else Rate Limit OK
+        API->>Auth: Validate JWT Signature & Expiration
+        alt JWT Invalid or Expired
+            Auth-->>Client: HTTP 411 Unauthorized
+        else JWT Valid (Admin Check)
+            Auth->>DB: Fetch user role & status
+            DB-->>Auth: Role: "User" (Unauthorized for admin)
+            alt Role unauthorized
+                Auth->>Log: log_security_event("UNAUTHORIZED_ADMIN_ACCESS")
+                Log-->>API: Write to logs/audit.log
+                Auth-->>Client: HTTP 403 Forbidden
+            else Role authorized (Admin)
+                Auth-->>Client: HTTP 200 OK (Dashboard JSON data)
+            end
+        end
+    end
+```
+
+---
+
+## 🔒 Security Hardening Details
+
+### 1. Zero-Trust Authentication (AuthN)
+*   **Cryptographic Password Hashing**: Passwords are never stored in plaintext. They are hashed using **Bcrypt** with salt rounds (work factor) of `12` (`bcrypt.gensalt(rounds=12)`). This provides robust defense against GPU-accelerated offline cracking attempts.
+*   **Cryptographically Signed JWT Sessions**: Successful logins issue a **JSON Web Token (JWT)** signed using **HMAC SHA-256 (HS256)** and a server-side `SECRET_KEY`. The tokens are short-lived (expiry set to `15 minutes`) to minimize the impact of token interception.
+
+### 2. Granular Role-Based Access Control (RBAC)
+*   **Role Checkpoint Dependencies**: Route access is protected using reusable FastAPI dependencies.
+*   **Access Tiers**:
+    *   `/api/v1/dashboard`: Accessible to both `User` and `Admin` roles.
+    *   `/api/v1/admin`: Accessible **strictly** to the `Admin` role.
+*   **Defensive Rejections**: Any attempts by a standard `User` to access administrative paths are met with an immediate `403 Forbidden` response and an automated security event trigger.
+
+### 3. Isolated Security Audit Logging
+*   **Intrusion Detection Trail**: Security violations and authentication lifecycle events are logged to a dedicated, isolated file: `logs/audit.log`.
+*   **Log Rotation Defense**: Utilizes a `RotatingFileHandler` configured to roll over at `10MB` and keep up to `5 backups`, mitigating storage-depletion Denial of Service (DoS) attacks.
+*   **Logged Events**:
+    *   `REGISTER_SUCCESS` / `REGISTER_FAILED`
+    *   `LOGIN_SUCCESS` / `FAILED_LOGIN_ATTEMPT` (logs offending username and client IP)
+    *   `UNAUTHORIZED_ADMIN_ACCESS` (logs source IP, offending username, and target endpoint)
+
+### 4. Custom HTTP Security Middleware (Helmet Equivalent)
+An ASGI middleware intercepts all outbound responses to inject browser security directives:
+*   `Strict-Transport-Security (HSTS)`: Forces secure HTTPS connections (`max-age=31536000; includeSubDomains`).
+*   `X-Content-Type-Options`: Set to `nosniff` to prevent browser MIME-type sniffing.
+*   `X-Frame-Options`: Set to `DENY` to defend against clickjacking attacks.
+*   `X-XSS-Protection`: Set to `1; mode=block` for older legacy browser filters.
+*   `Referrer-Policy`: Set to `no-referrer` to prevent leaking referral credentials.
+*   **Dynamic Content Security Policy (CSP)**:
+    *   For documentation paths (`/docs`, `/redoc`, `/openapi.json`), the policy permits Swagger CDN assets (`cdn.jsdelivr.net`) and FastAPI assets (`fastapi.tiangolo.com`).
+    *   For all other production API endpoints, the policy reverts to an ultra-strict `"default-src 'self'; frame-ancestors 'none';"` to completely isolate the API from external scripts.
+
+### 5. IP-Based Rate Limiting
+*   Protects the authentication gate `/api/v1/auth/login` using `slowapi` (IP-based token bucket tracking).
+*   Limits login queries to **`5 attempts per minute`** per client IP, preventing brute-force dictionary attacks.
 
 ---
 
@@ -59,19 +95,19 @@ A custom ASGI middleware injects secure-by-default HTTP headers to prevent clien
 .
 ├── app/
 │   ├── __init__.py
-│   ├── main.py          # FastAPI App, Middlewares, and Endpoints
-│   ├── config.py        # Settings configuration (Pydantic Settings)
-│   ├── auth.py          # Hashing, JWT logic, and RBAC dependencies
+│   ├── main.py          # FastAPI application, middlewares & routes
+│   ├── config.py        # Settings management (Pydantic Settings)
+│   ├── auth.py          # Hashing, JWT processing & security dependencies
 │   ├── database.py      # Thread-safe in-memory User Database (singleton)
-│   ├── schemas.py       # Pydantic input/output request schemas
-│   └── logger.py        # Audit Logging settings
+│   ├── schemas.py       # Pydantic input/output schemas & regex validation
+│   └── logger.py        # Security audit log configuration
 ├── logs/
 │   └── audit.log        # Target file for security events
 ├── tests/
-│   └── test_api.py      # Automated security verification tests
-├── .env                 # Environment secrets
-├── requirements.txt     # Python dependencies
-└── README.md            # Documentation
+│   └── test_api.py      # Automated security verification test suite
+├── .env                 # Environment variables and secrets
+├── requirements.txt     # Python package dependencies
+└── README.md            # Portfolio documentation
 ```
 
 ---
@@ -79,10 +115,10 @@ A custom ASGI middleware injects secure-by-default HTTP headers to prevent clien
 ## 🚀 Setup & Installation
 
 ### 1. Prerequisites
-- Python 3.12+ (Works on modern Python 3.14 as verified by test environments)
+*   Python 3.12+
 
-### 2. Installation
-Clone this repository to your local directory:
+### 2. Environment Setup
+Clone this repository to your local machine:
 ```bash
 # Create a virtual environment
 python3 -m venv .venv
@@ -94,23 +130,23 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Run the Server
-Start the development server using Uvicorn:
+### 3. Start the Server
+Run the Uvicorn ASGI server with hot-reload enabled:
 ```bash
 PYTHONPATH=. uvicorn app.main:app --reload
 ```
-The server will start at `http://127.0.0.1:8000`. 
-FastAPI automatically generates interactive Swagger API documentation at `http://127.0.0.1:8000/docs`.
+The server will bind to `http://127.0.0.1:8000`. Visiting the root URL `http://127.0.0.1:8000/` will automatically redirect you to the documentation UI.
 
 ---
 
-## 🧪 Testing Suite
-An automated suite of 5 integration tests is provided to verify all security aspects:
-1. **Security Headers Verification**: Checks that all responses contain security-hardening headers.
-2. **Registration Constraints**: Validates username character filters, password length constraints, and role rules.
-3. **Audit Log Generation**: Asserts that failed logins trigger audit entries in `logs/audit.log` containing correct IPs, usernames, and event descriptions.
-4. **RBAC Policy Enforcement**: Verifies that Admins can access `/admin` but normal Users are rejected with a `403 Forbidden` and audited.
-5. **Rate Limiter Action**: Simulates a brute force attack on the login route to verify that IP-based rate limiting throws a `429` status code.
+## 🧪 Automated Testing
+An automated security verification test suite covers all requirements:
+1.  **Security Headers check**: Asserts HSTS, CSP, and Clickjacking headers are correctly set.
+2.  **Registration constraints**: Tests password length requirements, username format filters, and role restrictions.
+3.  **Audit trail logic**: Validates that failed authentication queries create structured logs containing IPs, usernames, and timestamped actions.
+4.  **RBAC logic**: Confirms `User` accesses `/dashboard` successfully but receives `403 Forbidden` on `/admin`, while `Admin` accesses both.
+5.  **Rate limiting logic**: Tests that rapid login requests from a single client trigger a `429` block.
+6.  **Root Redirect check**: Asserts that visits to `/` redirect to `/docs` cleanly.
 
 Run the tests:
 ```bash
@@ -119,9 +155,10 @@ PYTHONPATH=. .venv/bin/pytest tests/test_api.py -v
 
 ---
 
-## 📈 Audit Log Sample
-When security violations occur, they are recorded in `logs/audit.log`. A sample output is:
+## 📊 Security Logs Sample
+Sample entries from `logs/audit.log`:
 ```text
-[2026-06-08 20:51:11,102] SECURITY_AUDIT | IP: 127.0.0.1 | User: normal_user | Event: UNAUTHORIZED_ADMIN_ACCESS | Access denied: user attempted to access admin panel without required privileges.
-[2026-06-08 20:51:12,234] SECURITY_AUDIT | IP: 127.0.0.1 | User: bob | Event: FAILED_LOGIN_ATTEMPT | Failed login attempt: invalid credentials.
+[2026-06-08 21:01:03,414] SECURITY_AUDIT | IP: 127.0.0.1 | User: Farhad03 | Event: REGISTER_SUCCESS | User registered successfully with role 'Admin'.
+[2026-06-08 21:02:37,139] SECURITY_AUDIT | IP: 127.0.0.1 | User: Farhad | Event: REGISTER_SUCCESS | User registered successfully with role 'User'.
+[2026-06-08 21:06:12,234] SECURITY_AUDIT | IP: 127.0.0.1 | User: Farhad | Event: UNAUTHORIZED_ADMIN_ACCESS | Access denied: user attempted to access admin panel without required privileges.
 ```
