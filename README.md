@@ -1,6 +1,6 @@
-# 🛡️ Minimalist & Secure REST API (FastAPI)
+# Minimalist & Secure REST API (FastAPI)
 
-[🇸🇪 Läs på svenska](README.sv.md)
+[Läs på svenska](README.sv.md)
 
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.110%2B-green.svg)](https://fastapi.tiangolo.com)
@@ -13,7 +13,7 @@ A minimalist, high-performance, and hardened REST API built with **Python (FastA
 
 ---
 
-## 📐 Architecture & Security Flow
+## Architecture & Security Flow
 
 Below is the request-response lifecycle illustrating the zero-trust architecture. Every request passes through rate limiting, security header injections, dynamic Content Security Policy (CSP) path checks, signature validation, and role checkpoints.
 
@@ -54,7 +54,7 @@ sequenceDiagram
 
 ---
 
-## 🔒 Security Hardening Details
+## Security Hardening Details
 
 ### 1. Zero-Trust Authentication (AuthN)
 *   **Cryptographic Password Hashing**: Passwords are never stored in plaintext. They are hashed using **Bcrypt** with salt rounds (work factor) of `12` (`bcrypt.gensalt(rounds=12)`). This provides robust defense against GPU-accelerated offline cracking attempts.
@@ -92,7 +92,7 @@ An ASGI middleware intercepts all outbound responses to inject browser security 
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 ```text
 .
 ├── app/
@@ -114,7 +114,7 @@ An ASGI middleware intercepts all outbound responses to inject browser security 
 
 ---
 
-## 🚀 Setup & Installation
+## Setup & Installation
 
 ### 1. Prerequisites
 *   Python 3.12+
@@ -141,7 +141,7 @@ The server will bind to `http://127.0.0.1:8000`. Visiting the root URL `http://1
 
 ---
 
-## 🧪 Automated Testing
+## Automated Testing
 An automated security verification test suite covers all requirements:
 1.  **Security Headers check**: Asserts HSTS, CSP, and Clickjacking headers are correctly set.
 2.  **Registration constraints**: Tests password length requirements, username format filters, and role restrictions.
@@ -157,7 +157,7 @@ PYTHONPATH=. .venv/bin/pytest tests/test_api.py -v
 
 ---
 
-## 📊 Security Logs Sample
+## Security Logs Sample
 Sample entries from `logs/audit.log`:
 ```text
 [2026-06-08 21:01:03,414] SECURITY_AUDIT | IP: 127.0.0.1 | User: Farhad03 | Event: REGISTER_SUCCESS | User registered successfully with role 'Admin'.

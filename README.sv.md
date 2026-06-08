@@ -1,6 +1,6 @@
-# 🛡️ Minimalistiskt & Säkert REST API (FastAPI)
+# Minimalistiskt & Säkert REST API (FastAPI)
 
-[🇬🇧 Read in English](README.md)
+[Read in English](README.md)
 
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.110%2B-green.svg)](https://fastapi.tiangolo.com)
@@ -13,7 +13,7 @@ Ett minimalistiskt, högpresterande och härdat REST API byggt med **Python (Fas
 
 ---
 
-## 📐 Arkitektur & Säkerhetsflöde
+## Arkitektur & Säkerhetsflöde
 
 Nedan visas livscykeln för en HTTP-förfrågan och hur zero-trust-arkitekturen är uppbyggd. Varje förfrågan passerar genom rate-limiting, injicering av säkerhetsheaders, kontroll av Content Security Policy (CSP), signaturverifiering och rollbaserade kontrollstationer.
 
@@ -54,7 +54,7 @@ sequenceDiagram
 
 ---
 
-## 🔒 Säkerhetshärdning i detalj
+## Säkerhetshärdning i detalj
 
 ### 1. Zero-Trust Autentisering (AuthN)
 *   **Kryptografisk lösenordshashning**: Lösenord lagras aldrig i klartext. De hashas med **Bcrypt** med saltrundor (work factor) inställd på `12` (`bcrypt.gensalt(rounds=12)`). Detta ger ett starkt skydd mot offline-attacker med specialiserad hårdvara (t.ex. GPU-kluster).
@@ -92,7 +92,7 @@ En anpassad middleware interceptar alla utgående svar för att lägga till webb
 
 ---
 
-## 📂 Projektstruktur
+## Projektstruktur
 ```text
 .
 ├── app/
@@ -115,7 +115,7 @@ En anpassad middleware interceptar alla utgående svar för att lägga till webb
 
 ---
 
-## 🚀 Installation & Konfiguration
+## Installation & Konfiguration
 
 ### 1. Förutsättningar
 *   Python 3.12+
@@ -142,7 +142,7 @@ Servern körs på `http://127.0.0.1:8000`. Om du besöker startsidan `http://127
 
 ---
 
-## 🧪 Automatiserade tester
+## Automatiserade tester
 Testsviten täcker alla säkerhetskrav:
 1.  **Säkerhetsheaders**: Kontrollerar HSTS, CSP, och clickjacking-headers.
 2.  **Registreringsfilter**: Testar lösenordslängd, tillåtna tecken i användarnamn och rollbegränsningar.
