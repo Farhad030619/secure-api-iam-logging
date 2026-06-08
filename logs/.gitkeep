@@ -1,0 +1,3 @@
+# Keep this folder tracked by git, but ignore the actual log files
+*
+!.gitkeep
