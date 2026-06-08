@@ -1,5 +1,7 @@
 # 🛡️ Minimalist & Secure REST API (FastAPI)
 
+[🇸🇪 Läs på svenska](README.sv.md)
+
 [![Python Version](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-v0.110%2B-green.svg)](https://fastapi.tiangolo.com)
 [![Security Certified](https://img.shields.io/badge/Security-Hardened-red.svg)](#-security-hardening-details)
