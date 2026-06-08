@@ -159,3 +159,9 @@ def test_rate_limiting():
             
     assert response.status_code == 429
     assert "Rate limit exceeded" in response.json()["error"]
+
+def test_root_redirect():
+    # Test that visiting / automatically redirects to /docs
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"

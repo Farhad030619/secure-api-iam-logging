@@ -48,6 +48,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
+from fastapi.responses import RedirectResponse
+
 # Helper to get client IP reliably
 def get_client_ip(request: Request) -> str:
     # Handle proxy headers if deployed behind reverse proxy
@@ -57,6 +59,11 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 # --- Endpoints ---
+
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse(url="/docs")
+
 
 @app.post("/api/v1/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_in: UserRegister, request: Request):
