@@ -43,7 +43,18 @@ async def add_security_headers(request: Request, call_next):
     # XSS Protection (older browsers, but good fallback)
     response.headers["X-XSS-Protection"] = "1; mode=block"
     # Content Security Policy (restrict sources)
-    response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
+    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+        # Allow Swagger UI CDN resources
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https://fastapi.tiangolo.com; "
+            "frame-ancestors 'none';"
+        )
+    else:
+        # Ultra strict policy for the REST API endpoints
+        response.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none';"
     # Referrer Policy
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
